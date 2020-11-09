@@ -3,11 +3,12 @@
 import threading
 import cv2
 
-class ProdConsQueue():
-    def __init__(self,queueCapacity):
+class ProdConsQueue:
+    def __init__(self):
         self.queue = []
-        self.full = Semaphore(0)
-        self.empty = Semaphore(24)
+        self.lock = threading.Lock()
+        self.full = threading.Semaphore(0)
+        self.empty = threading.Semaphore(24)
 
     def putFrame(self,frame):
         self.empty.acquire()
@@ -24,55 +25,55 @@ class ProdConsQueue():
         self.empty.release()
         return frame
 
-    def extract_frames(userFile, queue):
-        count = 0
-        video_file = cv2.VideoCapture(userFile)
+def extract_frames(userFile, queue):
+    count = 0
+    video_file = cv2.VideoCapture(userFile)
 
+    success,image = video_file.read()
+
+    while success:
+        queue.putFrame(image)
         success,image = video_file.read()
+        count += 1
 
-        while success:
-            queue.put(image)
-            success,image = video_file.read()
-            count += 1
+        queue.putFrame('$')
 
-        queue.put('$')
+def convert_gray(color, gray):
+    count = 0
 
-    def convert_gray(color. gray):
-        count = 0
+    colorFrame = color.getFrame()
 
-        colorFrame = color.get()
+    while colorFrame is not '$':
+        grayFrame = cv2.cvtColor(colorFrame,cv2.COLOR_BGR2GRAY)
 
-        while colorFrame is not '$':
-            grayFrame = cv2.cvtColor(colorFrame,cv2.COLOR_BGR2GRAY)
+        gray.putFrame(grayFrame)
+        count += 1
 
-            gray.put(grayFrame)
-            count += 1
+        colorFrame = color.getFrame()
 
-            colorFrame = color.get()
+    gray.putFrame('$')
 
-        grat.put('$')
+def display_frames(frames):
+    count = 0
+    currentFrame = frames.getFrame()
 
-    def display_frames(frames):
-        count = 0
-        currentFrame = frames.get()
+    while currentFrame is not '$':
+        cv2.imshow('Video',currentFrame)
+        if cv2.waitKey(42) and 0xFF == ord("q"):
+            break
+        count += 1
 
-        while currentFrame is not '$':
-            cv2.imshow('Video',currentFrame)
-            if cv2.waitKey(42) and 0xFF == ord("q"):
-                break
-            count += 1
+        currentFrame = frames.getFrame()
 
-            currentFrame = frames.get()
+    cv2.destroyAllWindows()
 
-        cv2.destroyAllWindows()
+color_frames = ProdConsQueue()
+gray_frames = ProdConsQueue()
 
-    color_frames = ProdConsQueue()
-    gray_frames = ProdConsQueue()
+extract = threading.Thread(target = extract_frames, args = ('clip.mp4',color_frames))
+convert = threading.Thread(target = convert_gray, args = (color_frames, gray_frames))
+display = threading.Thread(target = display_frames, args = (gray_frames,))
 
-    extract = threading.Thread(target = extract_frames, args = ('clip.mp4',color_frames))
-    convert = threading.Thread(target = convert_frames, args = (color_frames, gray_frames))
-    display = threading.Thread(target = display_frames, args = (gray_frames))
-
-    extract.start()
-    convert.start()
-    display.start()
+extract.start()
+convert.start()
+display.start()

@@ -17,8 +17,8 @@ def extract_frames(userFile, queue):
         print(f'Reading frame {count} {success}')
         count += 1
 
-        print('Finished extracting frames')
-        queue.putFrame('$')
+    print('Finished extracting frames')
+    queue.putFrame('$')
 
 def convert_gray(colorFrames, grayFrames):
     count = 0
